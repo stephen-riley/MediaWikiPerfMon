@@ -242,25 +242,30 @@ class SpecialServerHealth extends SpecialPage {
 
 		$html = Html::openElement( 'div', [ 'class' => 'perfmon-dashboard' ] );
 
+		$coresCount = $this->getCpuCoresCount();
+		$processorLabel = $coresCount === 1 ? 'processor' : 'processors';
+		$cpuHeaderTitle = $this->msg( 'mediawikiperfmon-cpu-load' )->text() . " ({$coresCount} {$processorLabel})";
+
 		// 1. CPU Load Card
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card ' . $this->getCardStateClass( $cpuState ) ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '⚡' );
 		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
-			Html::element( 'span', [], $this->msg( 'mediawikiperfmon-cpu-load' )->text() ) .
+			Html::element( 'span', [], $cpuHeaderTitle ) .
 			$this->getStatusBadge( $cpuState )
 		);
+
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card-value-group' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-cpu-1min' )->text() ) .
-			Html::element( 'span', [ 'class' => 'perfmon-val' ], $cpuLoad[0] )
+			Html::element( 'span', [ 'class' => 'perfmon-val' ], $this->formatCpuLoadVal( $cpuLoad[0], $coresCount ) )
 		);
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-cpu-5min' )->text() ) .
-			Html::element( 'span', [ 'class' => 'perfmon-val' ], $cpuLoad[1] )
+			Html::element( 'span', [ 'class' => 'perfmon-val' ], $this->formatCpuLoadVal( $cpuLoad[1], $coresCount ) )
 		);
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-cpu-15min' )->text() ) .
-			Html::element( 'span', [ 'class' => 'perfmon-val' ], $cpuLoad[2] )
+			Html::element( 'span', [ 'class' => 'perfmon-val' ], $this->formatCpuLoadVal( $cpuLoad[2], $coresCount ) )
 		);
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-cpu-uptime' )->text() ) .
@@ -655,5 +660,27 @@ class SpecialServerHealth extends SpecialPage {
 		}
 
 		return Html::rawElement( 'span', [ 'class' => $class ], htmlspecialchars( $valStr ) . $icon );
+	}
+
+	/**
+		* Format CPU load average with capacity utilization percentage.
+		* E.g., "2.30 (58%)"
+		*
+		* @param string|float $val
+		* @param int $cores
+		* @return string
+		*/
+	private function formatCpuLoadVal( $val, int $cores ): string {
+		if ( $val === 'N/A' || !is_numeric( $val ) ) {
+			return 'N/A';
+		}
+
+		$load = (float)$val;
+		$pct = (int)round( ( $load / (float)$cores ) * 100 );
+
+		// Format value string to two decimal places
+		$valStr = number_format( $load, 2, '.', '' );
+
+		return "{$valStr} ({$pct}%)";
 	}
 }
