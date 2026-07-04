@@ -493,9 +493,9 @@ class SpecialServerHealth extends SpecialPage {
 		$cores = $this->getCpuCoresCount();
 		$pct = ( $load / (float)$cores ) * 100;
 
-		if ( $pct < 87.5 ) {
+		if ( $pct < 100.0 ) {
 			return 'Healthy';
-		} elseif ( $pct < 100.0 ) {
+		} elseif ( $pct < 120.0 ) {
 			return 'Warning';
 		} else {
 			return 'Critical';
