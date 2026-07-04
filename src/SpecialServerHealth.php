@@ -13,7 +13,7 @@ use MediaWiki\Html\Html;
 class SpecialServerHealth extends SpecialPage {
 
 	public function __construct() {
-		parent::__construct( 'ServerHealth' );
+		parent::__construct( 'ServerHealth', 'serverhealth-view' );
 	}
 
 	/**
@@ -23,6 +23,7 @@ class SpecialServerHealth extends SpecialPage {
 		* @return void
 		*/
 	public function execute( $subPage ) {
+		$this->checkPermissions();
 		$this->setHeaders();
 		$out = $this->getOutput();
 

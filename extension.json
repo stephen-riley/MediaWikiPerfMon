@@ -36,5 +36,13 @@
 	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\MediaWikiPerfMon\\": "src/"
+	},
+	"AvailableRights": [
+		"serverhealth-view"
+	],
+	"GroupPermissions": {
+		"sysop": {
+			"serverhealth-view": true
+		}
 	}
 }
