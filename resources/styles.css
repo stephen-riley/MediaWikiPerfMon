@@ -132,3 +132,144 @@
 		background: #2d3748;
 	}
 }
+
+/* Slow queries container */
+.perfmon-slow-queries-container {
+	margin-top: 30px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.perfmon-details {
+	background: #ffffff;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 16px 24px;
+	box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+	transition: box-shadow 0.2s ease;
+}
+
+.perfmon-details[open] {
+	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.perfmon-summary {
+	font-weight: bold;
+	font-size: 1.1rem;
+	color: #2d3748;
+	cursor: pointer;
+	outline: none;
+	user-select: none;
+}
+
+.perfmon-summary:hover {
+	color: #4a5568;
+}
+
+.perfmon-info-box {
+	margin-top: 16px;
+	padding: 16px;
+	border-radius: 8px;
+	font-size: 0.95rem;
+}
+
+.perfmon-info-box pre {
+	background: rgba(0, 0, 0, 0.04);
+	padding: 12px;
+	border-radius: 6px;
+	font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+	font-size: 0.85rem;
+	margin-top: 10px;
+	overflow-x: auto;
+}
+
+.perfmon-warning {
+	background: #fffaf0;
+	border: 1px solid #feebc8;
+	color: #c05621;
+}
+
+.perfmon-error {
+	background: #fff5f5;
+	border: 1px solid #fed7d7;
+	color: #c53030;
+}
+
+.perfmon-info {
+	background: #ebf8ff;
+	border: 1px solid #bee3f8;
+	color: #2b6cb0;
+}
+
+.perfmon-slow-queries-table {
+	margin-top: 16px;
+	border-collapse: collapse;
+}
+
+.perfmon-slow-queries-table th {
+	background: #f7fafc;
+	color: #4a5568;
+	font-weight: 600;
+	padding: 10px;
+	text-align: left;
+	border-bottom: 2px solid #e2e8f0;
+}
+
+.perfmon-slow-queries-table td {
+	padding: 10px;
+	border-bottom: 1px solid #edf2f7;
+	color: #2d3748;
+}
+
+.perfmon-slow-queries-table td code {
+	background: #f7fafc;
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+	font-size: 0.85rem;
+	word-break: break-all;
+}
+
+/* Dark mode compatibility */
+@media (prefers-color-scheme: dark) {
+	.perfmon-details {
+		background: #1a202c;
+		border-color: #2d3748;
+	}
+	.perfmon-summary {
+		color: #e2e8f0;
+	}
+	.perfmon-summary:hover {
+		color: #cbd5e0;
+	}
+	.perfmon-warning {
+		background: #2c251d;
+		border-color: #4c3e2b;
+		color: #fbd38d;
+	}
+	.perfmon-error {
+		background: #2d1f1f;
+		border-color: #4a2828;
+		color: #feb2b2;
+	}
+	.perfmon-info {
+		background: #1a2635;
+		border-color: #2b3e50;
+		color: #90cdf4;
+	}
+	.perfmon-slow-queries-table th {
+		background: #2d3748;
+		color: #e2e8f0;
+		border-bottom-color: #4a5568;
+	}
+	.perfmon-slow-queries-table td {
+		border-bottom-color: #2d3748;
+		color: #cbd5e0;
+	}
+	.perfmon-slow-queries-table td code {
+		background: #2d3748;
+		color: #e2e8f0;
+	}
+	.perfmon-info-box pre {
+		background: rgba(255, 255, 255, 0.05);
+	}
+}

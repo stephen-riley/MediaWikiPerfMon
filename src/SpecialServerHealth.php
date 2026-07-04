@@ -301,6 +301,103 @@ class SpecialServerHealth extends SpecialPage {
 
 		$html .= Html::closeElement( 'div' ); // perfmon-dashboard
 
+		// 4. Collapsible Slow Queries List (Client-side HTML5 details/summary)
+		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-slow-queries-container' ] );
+		$html .= Html::openElement( 'details', [ 'class' => 'perfmon-details' ] );
+		$html .= Html::rawElement( 'summary', [ 'class' => 'perfmon-summary' ], Html::element( 'strong', [], $this->msg( 'mediawikiperfmon-slow-queries-toggle' )->text() ) );
+
+		$slowQueries = $this->getSlowQueriesList();
+
+		if ( $slowQueries === 'permission-denied' ) {
+			$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-info-box perfmon-warning' ],
+				Html::element( 'p', [], $this->msg( 'mediawikiperfmon-slow-queries-denied' )->text() ) .
+				Html::element( 'pre', [], "GRANT SELECT ON mysql.slow_log TO '" . $this->getDBUser() . "'@'localhost';" )
+			);
+		} elseif ( $slowQueries === 'error' ) {
+			$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-info-box perfmon-error' ],
+				Html::element( 'p', [], $this->msg( 'mediawikiperfmon-slow-queries-error' )->text() )
+			);
+		} elseif ( empty( $slowQueries ) ) {
+			$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-info-box perfmon-info' ],
+				Html::element( 'p', [], $this->msg( 'mediawikiperfmon-slow-queries-empty' )->text() )
+			);
+		} else {
+			$html .= Html::openElement( 'table', [ 'class' => 'wikitable perfmon-slow-queries-table', 'style' => 'width:100%;' ] );
+			$html .= Html::rawElement( 'thead', [],
+				Html::rawElement( 'tr', [],
+					Html::element( 'th', [], 'Time' ) .
+					Html::element( 'th', [], 'Duration' ) .
+					Html::element( 'th', [], 'Database' ) .
+					Html::element( 'th', [], 'Query' )
+				)
+			);
+			$html .= Html::openElement( 'tbody' );
+			foreach ( $slowQueries as $q ) {
+				$html .= Html::rawElement( 'tr', [],
+					Html::element( 'td', [], $q['time'] ) .
+					Html::element( 'td', [], $q['duration'] ) .
+					Html::element( 'td', [], $q['db'] ) .
+					Html::rawElement( 'td', [], Html::element( 'code', [], $q['sql'] ) )
+				);
+			}
+			$html .= Html::closeElement( 'tbody' );
+			$html .= Html::closeElement( 'table' );
+		}
+
+		$html .= Html::closeElement( 'details' );
+		$html .= Html::closeElement( 'div' );
+
 		$out->addHTML( $html );
+	}
+
+	/**
+		* Retrieve the database username from system configurations.
+		*
+		* @return string
+		*/
+	private function getDBUser(): string {
+		global $wgDBuser, $wgDBservers;
+		if ( isset( $wgDBservers[0]['user'] ) ) {
+			return (string)$wgDBservers[0]['user'];
+		}
+		return (string)( $wgDBuser ?? 'wikiuser' );
+	}
+
+	/**
+		* Fetch list of slow queries from mysql.slow_log.
+		*
+		* @return array|string Array of queries, or error status code string.
+		*/
+	private function getSlowQueriesList() {
+		try {
+			if ( function_exists( 'wfGetDB' ) ) {
+				$dbr = wfGetDB( DB_REPLICA );
+			} else {
+				$dbr = \MediaWiki\MediaWikiServices::getInstance()->getDBLoadBalancer()->getConnection( DB_REPLICA );
+			}
+
+			$res = $dbr->query(
+				"SELECT start_time, query_time, db, sql_text FROM mysql.slow_log ORDER BY start_time DESC LIMIT 10",
+				__METHOD__
+			);
+
+			$queries = [];
+			if ( $res ) {
+				foreach ( $res as $row ) {
+					$queries[] = [
+						'time' => $row->start_time ?? $row->START_TIME ?? 'N/A',
+						'duration' => $row->query_time ?? $row->QUERY_TIME ?? 'N/A',
+						'db' => $row->db ?? $row->DB ?? 'N/A',
+						'sql' => $row->sql_text ?? $row->SQL_TEXT ?? 'N/A'
+					];
+				}
+			}
+			return $queries;
+		} catch ( \Throwable $e ) {
+			if ( strpos( $e->getMessage(), 'denied' ) !== false ) {
+				return 'permission-denied';
+			}
+			return 'error';
+		}
 	}
 }

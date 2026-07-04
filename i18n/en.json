@@ -23,5 +23,9 @@
 	"mediawikiperfmon-db-peak": "Peak Connections",
 	"mediawikiperfmon-db-slow": "Slow Queries",
 	"mediawikiperfmon-db-uptime": "Database Uptime",
-	"mediawikiperfmon-db-desc": "Real-time metrics from the database layer."
+	"mediawikiperfmon-db-desc": "Real-time metrics from the database layer.",
+	"mediawikiperfmon-slow-queries-toggle": "Show Slow Queries List",
+	"mediawikiperfmon-slow-queries-denied": "Permission Denied: To display the slow queries list, your database user requires SELECT privilege on the 'mysql.slow_log' table. Run this command as root in MySQL:",
+	"mediawikiperfmon-slow-queries-error": "An error occurred while fetching slow queries.",
+	"mediawikiperfmon-slow-queries-empty": "No slow queries logged or slow query logging is disabled."
 }
