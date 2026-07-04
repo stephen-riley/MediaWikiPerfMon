@@ -28,16 +28,20 @@
 	height: 4px;
 }
 
-.perfmon-card-cpu::before {
-	background: linear-gradient(90deg, #ff7e5f, #feb47b);
+.perfmon-card-healthy::before {
+	background: linear-gradient(90deg, #38ef7d, #11998e);
 }
 
-.perfmon-card-mem::before {
-	background: linear-gradient(90deg, #00c6ff, #0072ff);
+.perfmon-card-warning::before {
+	background: linear-gradient(90deg, #f5af19, #ff5e62);
 }
 
-.perfmon-card-db::before {
-	background: linear-gradient(90deg, #11998e, #38ef7d);
+.perfmon-card-critical::before {
+	background: linear-gradient(90deg, #ffb199, #ff0844);
+}
+
+.perfmon-card-unknown::before {
+	background: linear-gradient(90deg, #cbd5e0, #a0aec0);
 }
 
 .perfmon-card:hover {

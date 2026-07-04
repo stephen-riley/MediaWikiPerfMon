@@ -225,14 +225,29 @@ class SpecialServerHealth extends SpecialPage {
 	private function renderDashboard( array $cpuLoad, string $systemUptime, array $memory, array $dbMetrics ): void {
 		$out = $this->getOutput();
 
+		// Determine CPU and Memory state values
+		$usedVal = 'N/A';
+		$usedPercent = 0;
+		if ( is_numeric( $memory['total'] ) && is_numeric( $memory['available'] ) && $memory['total'] > 0 ) {
+			$used = (int)$memory['total'] - (int)$memory['available'];
+			$usedVal = $used . ' MB';
+			$usedPercent = (int)round( ( $used / (float)$memory['total'] ) * 100 );
+		}
+
+		$totalVal = is_numeric( $memory['total'] ) ? $memory['total'] . ' MB' : 'N/A';
+		$availableVal = is_numeric( $memory['available'] ) ? $memory['available'] . ' MB' : 'N/A';
+
+		$cpuState = $this->getCpuHealthState( $cpuLoad );
+		$memState = $this->getMemoryHealthState( $usedPercent );
+
 		$html = Html::openElement( 'div', [ 'class' => 'perfmon-dashboard' ] );
 
 		// 1. CPU Load Card
-		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card perfmon-card-cpu' ] );
+		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card ' . $this->getCardStateClass( $cpuState ) ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '⚡' );
 		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
 			Html::element( 'span', [], $this->msg( 'mediawikiperfmon-cpu-load' )->text() ) .
-			$this->getCpuHealthStatus( $cpuLoad )
+			$this->getStatusBadge( $cpuState )
 		);
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card-value-group' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
@@ -255,24 +270,12 @@ class SpecialServerHealth extends SpecialPage {
 		$html .= Html::element( 'p', [ 'class' => 'perfmon-card-desc' ], $this->msg( 'mediawikiperfmon-cpu-desc' )->text() );
 		$html .= Html::closeElement( 'div' );
 
-		// Calculate used memory and progress percent
-		$usedVal = 'N/A';
-		$usedPercent = 0;
-		if ( is_numeric( $memory['total'] ) && is_numeric( $memory['available'] ) && $memory['total'] > 0 ) {
-			$used = (int)$memory['total'] - (int)$memory['available'];
-			$usedVal = $used . ' MB';
-			$usedPercent = (int)round( ( $used / (float)$memory['total'] ) * 100 );
-		}
-
-		$totalVal = is_numeric( $memory['total'] ) ? $memory['total'] . ' MB' : 'N/A';
-		$availableVal = is_numeric( $memory['available'] ) ? $memory['available'] . ' MB' : 'N/A';
-
 		// 2. Memory Usage Card
-		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card perfmon-card-mem' ] );
+		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card ' . $this->getCardStateClass( $memState ) ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '💾' );
 		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
 			Html::element( 'span', [], $this->msg( 'mediawikiperfmon-mem-usage' )->text() ) .
-			$this->getMemoryHealthStatus( $usedPercent )
+			$this->getStatusBadge( $memState )
 		);
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card-value-group' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
@@ -340,12 +343,14 @@ class SpecialServerHealth extends SpecialPage {
 			}
 		}
 
+		$dbState = $this->getDatabaseHealthState( $dbMetrics );
+
 		// 3. Database Health Card
-		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card perfmon-card-db' ] );
+		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card ' . $this->getCardStateClass( $dbState ) ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '🗄️' );
 		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
 			Html::element( 'span', [], $this->msg( 'mediawikiperfmon-db-health' )->text() ) .
-			$this->getDatabaseHealthStatus( $dbMetrics )
+			$this->getStatusBadge( $dbState )
 		);
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card-value-group' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
@@ -370,51 +375,49 @@ class SpecialServerHealth extends SpecialPage {
 
 		$html .= Html::closeElement( 'div' ); // perfmon-dashboard
 
-		// 4. Collapsible Slow Queries List (Client-side HTML5 details/summary)
-		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-slow-queries-container' ] );
-		$html .= Html::openElement( 'details', [ 'class' => 'perfmon-details' ] );
-		$html .= Html::rawElement( 'summary', [ 'class' => 'perfmon-summary' ], Html::element( 'strong', [], $this->msg( 'mediawikiperfmon-slow-queries-toggle' )->text() ) );
-
 		$slowQueries = $this->getSlowQueriesList();
 
-		if ( $slowQueries === 'permission-denied' ) {
-			$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-info-box perfmon-warning' ],
-				Html::element( 'p', [], $this->msg( 'mediawikiperfmon-slow-queries-denied' )->text() ) .
-				Html::element( 'pre', [], "GRANT SELECT ON mysql.slow_log TO '" . $this->getDBUser() . "'@'localhost';" )
-			);
-		} elseif ( $slowQueries === 'error' ) {
-			$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-info-box perfmon-error' ],
-				Html::element( 'p', [], $this->msg( 'mediawikiperfmon-slow-queries-error' )->text() )
-			);
-		} elseif ( empty( $slowQueries ) ) {
-			$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-info-box perfmon-info' ],
-				Html::element( 'p', [], $this->msg( 'mediawikiperfmon-slow-queries-empty' )->text() )
-			);
-		} else {
-			$html .= Html::openElement( 'table', [ 'class' => 'wikitable perfmon-slow-queries-table', 'style' => 'width:100%;' ] );
-			$html .= Html::rawElement( 'thead', [],
-				Html::rawElement( 'tr', [],
-					Html::element( 'th', [], 'Time' ) .
-					Html::element( 'th', [], 'Duration' ) .
-					Html::element( 'th', [], 'Database' ) .
-					Html::element( 'th', [], 'Query' )
-				)
-			);
-			$html .= Html::openElement( 'tbody' );
-			foreach ( $slowQueries as $q ) {
-				$html .= Html::rawElement( 'tr', [],
-					Html::element( 'td', [], $q['time'] ) .
-					Html::element( 'td', [], $q['duration'] ) .
-					Html::element( 'td', [], $q['db'] ) .
-					Html::rawElement( 'td', [], Html::element( 'code', [], $q['sql'] ) )
-				);
-			}
-			$html .= Html::closeElement( 'tbody' );
-			$html .= Html::closeElement( 'table' );
-		}
+		// Only display the panel if there are slow queries to display (or if permission is denied / error occurred)
+		if ( ( is_array( $slowQueries ) && count( $slowQueries ) > 0 ) || !is_array( $slowQueries ) ) {
+			$html .= Html::openElement( 'div', [ 'class' => 'perfmon-slow-queries-container' ] );
+			$html .= Html::openElement( 'details', [ 'class' => 'perfmon-details' ] );
+			$html .= Html::rawElement( 'summary', [ 'class' => 'perfmon-summary' ], Html::element( 'strong', [], $this->msg( 'mediawikiperfmon-slow-queries-toggle' )->text() ) );
 
-		$html .= Html::closeElement( 'details' );
-		$html .= Html::closeElement( 'div' );
+			if ( $slowQueries === 'permission-denied' ) {
+				$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-info-box perfmon-warning' ],
+					Html::element( 'p', [], $this->msg( 'mediawikiperfmon-slow-queries-denied' )->text() ) .
+					Html::element( 'pre', [], "GRANT SELECT ON mysql.slow_log TO '" . $this->getDBUser() . "'@'localhost';" )
+				);
+			} elseif ( $slowQueries === 'error' ) {
+				$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-info-box perfmon-error' ],
+					Html::element( 'p', [], $this->msg( 'mediawikiperfmon-slow-queries-error' )->text() )
+				);
+			} else {
+				$html .= Html::openElement( 'table', [ 'class' => 'wikitable perfmon-slow-queries-table', 'style' => 'width:100%;' ] );
+				$html .= Html::rawElement( 'thead', [],
+					Html::rawElement( 'tr', [],
+						Html::element( 'th', [], 'Time' ) .
+						Html::element( 'th', [], 'Duration' ) .
+						Html::element( 'th', [], 'Database' ) .
+						Html::element( 'th', [], 'Query' )
+					)
+				);
+				$html .= Html::openElement( 'tbody' );
+				foreach ( $slowQueries as $q ) {
+					$html .= Html::rawElement( 'tr', [],
+						Html::element( 'td', [], $q['time'] ) .
+						Html::element( 'td', [], $q['duration'] ) .
+						Html::element( 'td', [], $q['db'] ) .
+						Html::rawElement( 'td', [], Html::element( 'code', [], $q['sql'] ) )
+					);
+				}
+				$html .= Html::closeElement( 'tbody' );
+				$html .= Html::closeElement( 'table' );
+			}
+
+			$html .= Html::closeElement( 'details' );
+			$html .= Html::closeElement( 'div' );
+		}
 
 		$out->addHTML( $html );
 	}
@@ -474,22 +477,22 @@ class SpecialServerHealth extends SpecialPage {
 		* Determine health status for CPU Load.
 		*
 		* @param array $cpuLoad
-		* @return string HTML status badge.
+		* @return string 'Healthy'|'Warning'|'Critical'|'Unknown'
 		*/
-	private function getCpuHealthStatus( array $cpuLoad ): string {
+	private function getCpuHealthState( array $cpuLoad ): string {
 		if ( $cpuLoad[0] === 'N/A' || !is_numeric( $cpuLoad[0] ) ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Unknown' );
+			return 'Unknown';
 		}
 
 		$load = (float)$cpuLoad[0];
 		$cores = $this->getCpuCoresCount();
 
 		if ( $load <= 0.70 * $cores ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-green' ], 'Healthy' );
+			return 'Healthy';
 		} elseif ( $load <= 1.00 * $cores ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Warning' );
+			return 'Warning';
 		} else {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-red' ], 'Critical' );
+			return 'Critical';
 		}
 	}
 
@@ -514,19 +517,19 @@ class SpecialServerHealth extends SpecialPage {
 		* Determine health status for Memory Usage.
 		*
 		* @param int $usedPercent
-		* @return string HTML status badge.
+		* @return string 'Healthy'|'Warning'|'Critical'|'Unknown'
 		*/
-	private function getMemoryHealthStatus( int $usedPercent ): string {
+	private function getMemoryHealthState( int $usedPercent ): string {
 		if ( $usedPercent === 0 ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Unknown' );
+			return 'Unknown';
 		}
 
 		if ( $usedPercent <= 75 ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-green' ], 'Healthy' );
+			return 'Healthy';
 		} elseif ( $usedPercent <= 90 ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Warning' );
+			return 'Warning';
 		} else {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-red' ], 'Critical' );
+			return 'Critical';
 		}
 	}
 
@@ -534,16 +537,16 @@ class SpecialServerHealth extends SpecialPage {
 		* Determine health status for Database.
 		*
 		* @param array $dbMetrics
-		* @return string HTML status badge.
+		* @return string 'Healthy'|'Warning'|'Critical'|'Unknown'
 		*/
-	private function getDatabaseHealthStatus( array $dbMetrics ): string {
+	private function getDatabaseHealthState( array $dbMetrics ): string {
 		$threads = $dbMetrics['threads'];
 		$slow = $dbMetrics['slow'];
 		$uptimeRaw = $dbMetrics['uptime_raw'];
 		$peak = $dbMetrics['peak'];
 
 		if ( $threads === 'N/A' || !is_numeric( $threads ) ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Unknown' );
+			return 'Unknown';
 		}
 
 		$statuses = [];
@@ -579,11 +582,56 @@ class SpecialServerHealth extends SpecialPage {
 		}
 
 		if ( in_array( 'red', $statuses, true ) ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-red' ], 'Critical' );
+			return 'Critical';
 		} elseif ( in_array( 'amber', $statuses, true ) ) {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Warning' );
+			return 'Warning';
 		} else {
-			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-green' ], 'Healthy' );
+			return 'Healthy';
+		}
+	}
+
+	/**
+		* Map health status string to CSS badge markup.
+		*
+		* @param string $state 'Healthy'|'Warning'|'Critical'|'Unknown'
+		* @return string HTML span element.
+		*/
+	private function getStatusBadge( string $state ): string {
+		$class = 'perfmon-status-badge';
+		switch ( strtolower( $state ) ) {
+			case 'healthy':
+				$class .= ' perfmon-status-green';
+				break;
+			case 'warning':
+				$class .= ' perfmon-status-amber';
+				break;
+			case 'critical':
+				$class .= ' perfmon-status-red';
+				break;
+			default:
+				$class .= ' perfmon-status-amber';
+				$state = 'Unknown';
+				break;
+		}
+		return Html::rawElement( 'span', [ 'class' => $class ], htmlspecialchars( $state ) );
+	}
+
+	/**
+		* Map health status to card state class name.
+		*
+		* @param string $status 'Healthy'|'Warning'|'Critical'|'Unknown'.
+		* @return string CSS class.
+		*/
+	private function getCardStateClass( string $status ): string {
+		switch ( strtolower( $status ) ) {
+			case 'healthy':
+				return 'perfmon-card-healthy';
+			case 'warning':
+				return 'perfmon-card-warning';
+			case 'critical':
+				return 'perfmon-card-critical';
+			default:
+				return 'perfmon-card-unknown';
 		}
 	}
 
