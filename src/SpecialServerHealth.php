@@ -138,6 +138,7 @@ class SpecialServerHealth extends SpecialPage {
 			'threads' => 'N/A',
 			'peak' => 'N/A',
 			'slow' => 'N/A',
+			'uptime_raw' => 'N/A',
 			'uptime' => 'N/A'
 		];
 		try {
@@ -146,8 +147,10 @@ class SpecialServerHealth extends SpecialPage {
 			} else {
 				$dbr = \MediaWiki\MediaWikiServices::getInstance()->getDBLoadBalancer()->getConnection( DB_REPLICA );
 			}
+
+			// Query 1: Global status metrics (excluding Slow_queries)
 			$res = $dbr->query(
-				"SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_connected', 'Max_used_connections', 'Slow_queries', 'Uptime')",
+				"SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_connected', 'Max_used_connections', 'Uptime')",
 				__METHOD__
 			);
 			if ( $res ) {
@@ -158,12 +161,26 @@ class SpecialServerHealth extends SpecialPage {
 						$metrics['threads'] = $val;
 					} elseif ( $name === 'Max_used_connections' ) {
 						$metrics['peak'] = $val;
-					} elseif ( $name === 'Slow_queries' ) {
-						$metrics['slow'] = $val;
 					} elseif ( $name === 'Uptime' ) {
+						$metrics['uptime_raw'] = $val;
 						$metrics['uptime'] = is_numeric( $val ) ? $this->formatUptime( (int)$val ) : $val;
 					}
 				}
+			}
+
+			// Query 2: Slow queries count in the last 24 hours solely from mysql.slow_log
+			try {
+				$resSlow = $dbr->query(
+					"SELECT COUNT(*) AS cnt FROM mysql.slow_log WHERE start_time >= NOW() - INTERVAL 1 DAY",
+					__METHOD__
+				);
+				if ( $resSlow ) {
+					foreach ( $resSlow as $row ) {
+						$metrics['slow'] = (int)( $row->cnt ?? $row->CNT ?? 0 );
+					}
+				}
+			} catch ( \Throwable $e ) {
+				$metrics['slow'] = 'N/A';
 			}
 		} catch ( \Throwable $e ) {
 			// Fail gracefully
@@ -213,7 +230,10 @@ class SpecialServerHealth extends SpecialPage {
 		// 1. CPU Load Card
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card perfmon-card-cpu' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '⚡' );
-		$html .= Html::element( 'h3', [ 'class' => 'perfmon-card-title' ], $this->msg( 'mediawikiperfmon-cpu-load' )->text() );
+		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
+			Html::element( 'span', [], $this->msg( 'mediawikiperfmon-cpu-load' )->text() ) .
+			$this->getCpuHealthStatus( $cpuLoad )
+		);
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card-value-group' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-cpu-1min' )->text() ) .
@@ -250,7 +270,10 @@ class SpecialServerHealth extends SpecialPage {
 		// 2. Memory Usage Card
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card perfmon-card-mem' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '💾' );
-		$html .= Html::element( 'h3', [ 'class' => 'perfmon-card-title' ], $this->msg( 'mediawikiperfmon-mem-usage' )->text() );
+		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
+			Html::element( 'span', [], $this->msg( 'mediawikiperfmon-mem-usage' )->text() ) .
+			$this->getMemoryHealthStatus( $usedPercent )
+		);
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card-value-group' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-mem-total' )->text() ) .
@@ -275,26 +298,71 @@ class SpecialServerHealth extends SpecialPage {
 		$html .= Html::element( 'p', [ 'class' => 'perfmon-card-desc' ], $this->msg( 'mediawikiperfmon-mem-desc' )->text() );
 		$html .= Html::closeElement( 'div' );
 
+		// Threads status
+		$threadsStatus = 'green';
+		if ( is_numeric( $dbMetrics['threads'] ) ) {
+			$tCount = (int)$dbMetrics['threads'];
+			if ( $tCount > 150 ) {
+				$threadsStatus = 'red';
+			} elseif ( $tCount > 50 ) {
+				$threadsStatus = 'amber';
+			}
+		}
+
+		// Peak status
+		$peakStatus = 'green';
+		if ( is_numeric( $dbMetrics['peak'] ) ) {
+			$pCount = (int)$dbMetrics['peak'];
+			if ( $pCount > 200 ) {
+				$peakStatus = 'red';
+			} elseif ( $pCount > 100 ) {
+				$peakStatus = 'amber';
+			}
+		}
+
+		// Slow status
+		$slowStatus = 'green';
+		if ( is_numeric( $dbMetrics['slow'] ) ) {
+			$sCount = (int)$dbMetrics['slow'];
+			if ( $sCount > 50 ) {
+				$slowStatus = 'red';
+			} elseif ( $sCount > 0 ) {
+				$slowStatus = 'amber';
+			}
+		}
+
+		// Uptime status
+		$dbUptimeStatus = 'green';
+		if ( is_numeric( $dbMetrics['uptime_raw'] ) ) {
+			$uSeconds = (int)$dbMetrics['uptime_raw'];
+			if ( $uSeconds <= 900 ) {
+				$dbUptimeStatus = 'amber';
+			}
+		}
+
 		// 3. Database Health Card
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card perfmon-card-db' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '🗄️' );
-		$html .= Html::element( 'h3', [ 'class' => 'perfmon-card-title' ], $this->msg( 'mediawikiperfmon-db-health' )->text() );
+		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
+			Html::element( 'span', [], $this->msg( 'mediawikiperfmon-db-health' )->text() ) .
+			$this->getDatabaseHealthStatus( $dbMetrics )
+		);
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card-value-group' ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-db-threads' )->text() ) .
-			Html::element( 'span', [ 'class' => 'perfmon-val' ], $dbMetrics['threads'] )
+			$this->formatMetricValue( $dbMetrics['threads'], $threadsStatus )
 		);
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-db-peak' )->text() ) .
-			Html::element( 'span', [ 'class' => 'perfmon-val' ], $dbMetrics['peak'] )
+			$this->formatMetricValue( $dbMetrics['peak'], $peakStatus )
 		);
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-db-slow' )->text() ) .
-			Html::element( 'span', [ 'class' => 'perfmon-val' ], $dbMetrics['slow'] )
+			$this->formatMetricValue( $dbMetrics['slow'], $slowStatus )
 		);
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-subvalue' ],
 			Html::element( 'span', [ 'class' => 'perfmon-label' ], $this->msg( 'mediawikiperfmon-db-uptime' )->text() ) .
-			Html::element( 'span', [ 'class' => 'perfmon-val' ], $dbMetrics['uptime'] )
+			$this->formatMetricValue( $dbMetrics['uptime'], $dbUptimeStatus )
 		);
 		$html .= Html::closeElement( 'div' );
 		$html .= Html::element( 'p', [ 'class' => 'perfmon-card-desc' ], $this->msg( 'mediawikiperfmon-db-desc' )->text() );
@@ -400,5 +468,144 @@ class SpecialServerHealth extends SpecialPage {
 			}
 			return 'error';
 		}
+	}
+
+	/**
+		* Determine health status for CPU Load.
+		*
+		* @param array $cpuLoad
+		* @return string HTML status badge.
+		*/
+	private function getCpuHealthStatus( array $cpuLoad ): string {
+		if ( $cpuLoad[0] === 'N/A' || !is_numeric( $cpuLoad[0] ) ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Unknown' );
+		}
+
+		$load = (float)$cpuLoad[0];
+		$cores = $this->getCpuCoresCount();
+
+		if ( $load <= 0.70 * $cores ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-green' ], 'Healthy' );
+		} elseif ( $load <= 1.00 * $cores ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Warning' );
+		} else {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-red' ], 'Critical' );
+		}
+	}
+
+	/**
+		* Count the number of CPU cores in the system by reading /proc/cpuinfo.
+		* Secure fallback mechanism, executing no shell commands.
+		*
+		* @return int
+		*/
+	private function getCpuCoresCount(): int {
+		$cores = 1;
+		if ( is_readable( '/proc/cpuinfo' ) ) {
+			$cpuinfo = file_get_contents( '/proc/cpuinfo' );
+			if ( $cpuinfo !== false ) {
+				$cores = substr_count( $cpuinfo, 'processor' );
+			}
+		}
+		return $cores > 0 ? $cores : 1;
+	}
+
+	/**
+		* Determine health status for Memory Usage.
+		*
+		* @param int $usedPercent
+		* @return string HTML status badge.
+		*/
+	private function getMemoryHealthStatus( int $usedPercent ): string {
+		if ( $usedPercent === 0 ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Unknown' );
+		}
+
+		if ( $usedPercent <= 75 ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-green' ], 'Healthy' );
+		} elseif ( $usedPercent <= 90 ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Warning' );
+		} else {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-red' ], 'Critical' );
+		}
+	}
+
+	/**
+		* Determine health status for Database.
+		*
+		* @param array $dbMetrics
+		* @return string HTML status badge.
+		*/
+	private function getDatabaseHealthStatus( array $dbMetrics ): string {
+		$threads = $dbMetrics['threads'];
+		$slow = $dbMetrics['slow'];
+		$uptimeRaw = $dbMetrics['uptime_raw'];
+		$peak = $dbMetrics['peak'];
+
+		if ( $threads === 'N/A' || !is_numeric( $threads ) ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Unknown' );
+		}
+
+		$statuses = [];
+
+		$threadsCount = (int)$threads;
+		if ( $threadsCount > 150 ) {
+			$statuses[] = 'red';
+		} elseif ( $threadsCount > 50 ) {
+			$statuses[] = 'amber';
+		}
+
+		if ( is_numeric( $peak ) ) {
+			$peakCount = (int)$peak;
+			if ( $peakCount > 200 ) {
+				$statuses[] = 'red';
+			} elseif ( $peakCount > 100 ) {
+				$statuses[] = 'amber';
+			}
+		}
+
+		$slowCount = is_numeric( $slow ) ? (int)$slow : 0;
+		if ( $slowCount > 50 ) {
+			$statuses[] = 'red';
+		} elseif ( $slowCount > 0 ) {
+			$statuses[] = 'amber';
+		}
+
+		if ( is_numeric( $uptimeRaw ) ) {
+			$uptimeSec = (int)$uptimeRaw;
+			if ( $uptimeSec <= 900 ) {
+				$statuses[] = 'amber';
+			}
+		}
+
+		if ( in_array( 'red', $statuses, true ) ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-red' ], 'Critical' );
+		} elseif ( in_array( 'amber', $statuses, true ) ) {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-amber' ], 'Warning' );
+		} else {
+			return Html::rawElement( 'span', [ 'class' => 'perfmon-status-badge perfmon-status-green' ], 'Healthy' );
+		}
+	}
+
+	/**
+		* Render value with health class and warning/critical indicators next to it.
+		*
+		* @param string $val Raw value.
+		* @param string $status 'green'|'amber'|'red'.
+		* @return string HTML span element.
+		*/
+	private function formatMetricValue( $val, string $status ): string {
+		$valStr = (string)$val;
+		$class = 'perfmon-val';
+		$icon = '';
+		if ( $status === 'amber' ) {
+			$class .= ' perfmon-metric-amber';
+			$icon = ' ⚠️';
+		} elseif ( $status === 'red' ) {
+			$class .= ' perfmon-metric-red';
+			$icon = ' ❌';
+		}
+
+		return Html::rawElement( 'span', [ 'class' => $class ], htmlspecialchars( $valStr ) . $icon );
 	}
 }

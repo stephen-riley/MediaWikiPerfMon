@@ -21,7 +21,7 @@
 	"mediawikiperfmon-db-health": "Database Health",
 	"mediawikiperfmon-db-threads": "Threads Connected",
 	"mediawikiperfmon-db-peak": "Peak Connections",
-	"mediawikiperfmon-db-slow": "Slow Queries",
+	"mediawikiperfmon-db-slow": "Slow Queries (last 24h)",
 	"mediawikiperfmon-db-uptime": "Database Uptime",
 	"mediawikiperfmon-db-desc": "Real-time metrics from the database layer.",
 	"mediawikiperfmon-slow-queries-toggle": "Show Slow Queries List",

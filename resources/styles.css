@@ -51,6 +51,9 @@
 }
 
 .perfmon-card-title {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	margin: 0 0 16px 0 !important;
 	font-size: 1.25rem;
 	font-weight: 600;
@@ -271,5 +274,72 @@
 	}
 	.perfmon-info-box pre {
 		background: rgba(255, 255, 255, 0.05);
+	}
+}
+
+/* Health status badges */
+.perfmon-status-badge {
+	font-size: 0.75rem;
+	font-weight: 600;
+	padding: 4px 10px;
+	border-radius: 9999px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.perfmon-status-badge::before {
+	content: '';
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	display: inline-block;
+}
+
+/* Green (Healthy) */
+.perfmon-status-green {
+	background: #e6fffa;
+	color: #0f766e;
+}
+.perfmon-status-green::before {
+	background: #0d9488;
+	box-shadow: 0 0 8px #0d9488;
+}
+
+/* Amber (Warning) */
+.perfmon-status-amber {
+	background: #fffaf0;
+	color: #b7791f;
+}
+.perfmon-status-amber::before {
+	background: #dd6b20;
+	box-shadow: 0 0 8px #dd6b20;
+}
+
+/* Red (Critical) */
+.perfmon-status-red {
+	background: #fff5f5;
+	color: #9b2c2c;
+}
+.perfmon-status-red::before {
+	background: #e53e3e;
+	box-shadow: 0 0 8px #e53e3e;
+}
+
+/* Dark mode overrides for badges */
+@media (prefers-color-scheme: dark) {
+	.perfmon-status-green {
+		background: #0b2d28;
+		color: #4fd1c5;
+	}
+	.perfmon-status-amber {
+		background: #2d2417;
+		color: #fbd38d;
+	}
+	.perfmon-status-red {
+		background: #2d1c1c;
+		color: #feb2b2;
 	}
 }
