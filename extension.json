@@ -1,0 +1,40 @@
+{
+	"name": "MediaWikiPerfMon",
+	"version": "1.0.0",
+	"author": "Antigravity",
+	"url": "https://www.mediawiki.org/wiki/Extension:MediaWikiPerfMon",
+	"descriptionmsg": "mediawikiperfmon-desc",
+	"license-name": "GPL-2.0-or-later",
+	"type": "specialpage",
+	"requires": {
+		"MediaWiki": ">= 1.35.0"
+	},
+	"manifest_version": 2,
+	"MessagesDirs": {
+		"MediaWikiPerfMon": [
+			"i18n"
+		]
+	},
+	"ExtensionMessagesFiles": {
+		"MediaWikiPerfMonAlias": "i18n/MediaWikiPerfMon.alias.php"
+	},
+	"SpecialPages": {
+		"ServerHealth": {
+			"class": "MediaWiki\\Extension\\MediaWikiPerfMon\\SpecialServerHealth"
+		}
+	},
+	"ResourceModules": {
+		"ext.MediaWikiPerfMon.styles": {
+			"styles": [
+				"styles.css"
+			]
+		}
+	},
+	"ResourceFileModulePaths": {
+		"localBasePath": "resources",
+		"remoteExtPath": "MediaWikiPerfMon/resources"
+	},
+	"AutoloadNamespaces": {
+		"MediaWiki\\Extension\\MediaWikiPerfMon\\": "src/"
+	}
+}

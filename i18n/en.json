@@ -1,0 +1,27 @@
+{
+	"@metadata": {
+		"authors": [
+			"Antigravity"
+		]
+	},
+	"serverhealth": "Server Health",
+	"mediawikiperfmon-desc": "Displays server performance and health metrics.",
+	"mediawikiperfmon-cpu-load": "CPU Load Average",
+	"mediawikiperfmon-cpu-1min": "1 Minute",
+	"mediawikiperfmon-cpu-5min": "5 Minutes",
+	"mediawikiperfmon-cpu-15min": "15 Minutes",
+	"mediawikiperfmon-cpu-uptime": "System Uptime",
+	"mediawikiperfmon-cpu-desc": "Current load averages from /proc/loadavg.",
+	"mediawikiperfmon-mem-usage": "Memory Usage",
+	"mediawikiperfmon-mem-total": "Total Memory",
+	"mediawikiperfmon-mem-used": "Used Memory",
+	"mediawikiperfmon-mem-available": "Available Memory",
+	"mediawikiperfmon-mem-used-pct": "$1% Used",
+	"mediawikiperfmon-mem-desc": "Memory statistics parsed from free -m.",
+	"mediawikiperfmon-db-health": "Database Health",
+	"mediawikiperfmon-db-threads": "Threads Connected",
+	"mediawikiperfmon-db-peak": "Peak Connections",
+	"mediawikiperfmon-db-slow": "Slow Queries",
+	"mediawikiperfmon-db-uptime": "Database Uptime",
+	"mediawikiperfmon-db-desc": "Real-time metrics from the database layer."
+}

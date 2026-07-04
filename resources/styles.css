@@ -1,0 +1,134 @@
+/* Dashboard CSS for MediaWikiPerfMon */
+
+.perfmon-dashboard {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 20px;
+	margin: 20px 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.perfmon-card {
+	background: #ffffff;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 24px;
+	box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	position: relative;
+	overflow: hidden;
+}
+
+.perfmon-card::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 4px;
+}
+
+.perfmon-card-cpu::before {
+	background: linear-gradient(90deg, #ff7e5f, #feb47b);
+}
+
+.perfmon-card-mem::before {
+	background: linear-gradient(90deg, #00c6ff, #0072ff);
+}
+
+.perfmon-card-db::before {
+	background: linear-gradient(90deg, #11998e, #38ef7d);
+}
+
+.perfmon-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.perfmon-card-icon {
+	font-size: 2rem;
+	margin-bottom: 12px;
+}
+
+.perfmon-card-title {
+	margin: 0 0 16px 0 !important;
+	font-size: 1.25rem;
+	font-weight: 600;
+	color: #1a202c;
+	border-bottom: none !important; /* Override mediawiki default header border */
+}
+
+.perfmon-card-value-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.perfmon-card-subvalue {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.perfmon-label {
+	font-size: 0.9rem;
+	color: #718096;
+}
+
+.perfmon-val {
+	font-size: 1.1rem;
+	font-weight: 700;
+	color: #2d3748;
+}
+
+.perfmon-progress-bar-container {
+	background: #edf2f7;
+	border-radius: 9999px;
+	height: 8px;
+	overflow: hidden;
+	margin-top: 8px;
+	position: relative;
+}
+
+.perfmon-progress-bar {
+	background: linear-gradient(90deg, #00c6ff, #0072ff);
+	height: 100%;
+	border-radius: 9999px;
+	transition: width 0.5s ease-in-out;
+}
+
+.perfmon-progress-text {
+	font-size: 0.8rem;
+	color: #718096;
+	display: block;
+	text-align: right;
+	margin-top: 4px;
+}
+
+.perfmon-card-desc {
+	margin: 0 !important;
+	font-size: 0.85rem;
+	color: #a0aec0;
+	line-height: 1.4;
+}
+
+/* Dark mode compatibility */
+@media (prefers-color-scheme: dark) {
+	.perfmon-card {
+		background: #1a202c;
+		border-color: #2d3748;
+	}
+	.perfmon-card-title {
+		color: #e2e8f0;
+	}
+	.perfmon-val {
+		color: #f7fafc;
+	}
+	.perfmon-label {
+		color: #a0aec0;
+	}
+	.perfmon-progress-bar-container {
+		background: #2d3748;
+	}
+}
