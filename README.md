@@ -9,6 +9,7 @@
 - **CPU Load & Uptime Panel:** Shows 1, 5, and 15-minute load averages alongside system uptime.
 - **Memory Usage Panel:** Displays total, used, and available system memory with an interactive, colored percentage progress bar.
 - **Database Status Panel:** Tracks connected threads, peak active connections, slow query count, and database server uptime.
+- **Disk Status Panel:** Monitored via `/dev` mounted partitions, displaying usage percentages, mount paths, and remaining sizes, with amber/red alerts based on disk usage thresholds.
 - **Collapsible Slow Queries Panel:** Lists detailed slow queries (timestamp, duration, database, and statement syntax) on-demand, securely hidden by default.
 - **Responsive Premium UI:** Fully compatible with vector/modern MediaWiki skins, featuring smooth gradients, cards layout, hover effects, and automatic dark-mode styling.
 
@@ -17,7 +18,7 @@
 ## Requirements
 
 - **MediaWiki:** version `1.35` or higher (fully tested on MediaWiki `1.40`+).
-- **Operating System:** Linux/Unix (required for `/proc` parsing and `free -m`).
+- **Operating System:** Linux/Unix (required for `/proc` parsing, `free -m`, and `df -h`).
 - **PHP:** `shell_exec()` must be enabled in your `php.ini` configuration.
 - **Database:** MySQL or MariaDB.
 
@@ -79,3 +80,7 @@ This extension was designed with safety and isolation in mind:
 - **Strict Input Constraints:** All system shell commands (`cat /proc/loadavg`, `free -m`, and `cat /proc/uptime`) are completely hardcoded.
 - **Input Isolation:** The PHP logic explicitly ensures that no URL query parameters, HTTP requests, or user inputs can ever interact with or modify the `shell_exec()` calls.
 - **Graceful Failure:** If any shell utilities are blocked or DB query permissions are missing, the UI degrades gracefully with descriptive labels and helper guides instead of raising PHP fatal errors.
+
+---
+
+*This extension was written with [Google Antigravity 2](https://antigravity.google).*

@@ -292,6 +292,8 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+	white-space: nowrap;
+	flex-shrink: 0;
 }
 
 .perfmon-status-badge::before {
@@ -406,6 +408,30 @@
 	.perfmon-disk-table td {
 		border-bottom-color: #2d3748;
 		color: #cbd5e0;
+	}
+}
+
+/* Subtitles styling inside card titles */
+.perfmon-title-text-group {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.perfmon-title-main {
+	font-size: 1.25rem;
+	font-weight: 600;
+}
+
+.perfmon-title-sub {
+	font-size: 0.85rem;
+	font-weight: normal;
+	color: #718096;
+}
+
+@media (prefers-color-scheme: dark) {
+	.perfmon-title-sub {
+		color: #a0aec0;
 	}
 }
 

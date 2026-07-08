@@ -318,13 +318,15 @@ class SpecialServerHealth extends SpecialPage {
 
 		$coresCount = $this->getCpuCoresCount();
 		$processorLabel = $coresCount === 1 ? 'processor' : 'processors';
-		$cpuHeaderTitle = $this->msg( 'mediawikiperfmon-cpu-load' )->text() . " ({$coresCount} {$processorLabel})";
 
 		// 1. CPU Load Card
 		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card ' . $this->getCardStateClass( $cpuState ) ] );
 		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '⚡' );
 		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
-			Html::element( 'span', [], $cpuHeaderTitle ) .
+			Html::rawElement( 'span', [ 'class' => 'perfmon-title-text-group' ],
+				Html::element( 'span', [ 'class' => 'perfmon-title-main' ], $this->msg( 'mediawikiperfmon-cpu-load' )->text() ) .
+				Html::element( 'span', [ 'class' => 'perfmon-title-sub' ], "({$coresCount} {$processorLabel})" )
+			) .
 			$this->getStatusBadge( $cpuState )
 		);
 
