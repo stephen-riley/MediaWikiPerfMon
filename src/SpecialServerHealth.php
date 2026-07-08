@@ -530,7 +530,7 @@ class SpecialServerHealth extends SpecialPage {
 			return 'Unknown';
 		}
 
-		if ( $usedPercent <= 75 ) {
+		if ( $usedPercent <= 80 ) {
 			return 'Healthy';
 		} elseif ( $usedPercent <= 90 ) {
 			return 'Warning';
