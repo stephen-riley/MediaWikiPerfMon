@@ -347,3 +347,65 @@
 		color: #feb2b2;
 	}
 }
+
+/* Metric value coloring for warnings and errors */
+.perfmon-metric-amber {
+	color: #dd6b20 !important;
+}
+.perfmon-metric-red {
+	color: #e53e3e !important;
+}
+
+@media (prefers-color-scheme: dark) {
+	.perfmon-metric-amber {
+		color: #fbd38d !important;
+	}
+	.perfmon-metric-red {
+		color: #feb2b2 !important;
+	}
+}
+
+/* Disk usage table */
+.perfmon-disk-table-container {
+	margin-top: 10px;
+	margin-bottom: 16px;
+	max-height: 180px;
+	overflow-y: auto;
+}
+
+.perfmon-disk-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.85rem;
+}
+
+.perfmon-disk-table th {
+	text-align: left;
+	color: #718096;
+	font-weight: 600;
+	padding: 6px 4px;
+	border-bottom: 1px solid #edf2f7;
+	position: sticky;
+	top: 0;
+	background: #ffffff;
+}
+
+.perfmon-disk-table td {
+	padding: 6px 4px;
+	border-bottom: 1px solid #edf2f7;
+	color: #2d3748;
+}
+
+/* Dark mode overrides for disk table */
+@media (prefers-color-scheme: dark) {
+	.perfmon-disk-table th {
+		color: #a0aec0;
+		border-bottom-color: #2d3748;
+		background: #1a202c;
+	}
+	.perfmon-disk-table td {
+		border-bottom-color: #2d3748;
+		color: #cbd5e0;
+	}
+}
+

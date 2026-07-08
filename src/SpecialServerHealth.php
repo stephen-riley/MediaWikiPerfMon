@@ -35,9 +35,10 @@ class SpecialServerHealth extends SpecialPage {
 		$systemUptime = $this->getSystemUptime();
 		$memory = $this->getMemoryUsage();
 		$dbMetrics = $this->getDatabaseMetrics();
+		$disks = $this->getDiskUsage();
 
 		// Render the metrics dashboard
-		$this->renderDashboard( $cpuLoad, $systemUptime, $memory, $dbMetrics );
+		$this->renderDashboard( $cpuLoad, $systemUptime, $memory, $dbMetrics, $disks );
 	}
 
 	/**
@@ -189,6 +190,78 @@ class SpecialServerHealth extends SpecialPage {
 	}
 
 	/**
+	 * Parse the output of df -h using shell_exec().
+	 * Hardcoded shell command to prevent any user input execution.
+	 *
+	 * @return array
+	 */
+	private function getDiskUsage(): array {
+		$output = shell_exec( 'df -h' );
+		if ( $output === null || $output === false ) {
+			return [];
+		}
+
+		$lines = explode( "\n", trim( $output ) );
+		$disks = [];
+
+		// Skip header line
+		for ( $i = 1; $i < count( $lines ); $i++ ) {
+			$line = trim( $lines[$i] );
+			if ( $line === '' ) {
+				continue;
+			}
+
+			// Parse row
+			$parts = preg_split( '/\s+/', $line );
+			if ( $parts !== false && count( $parts ) >= 6 ) {
+				// Only include filesystem entries starting with /dev
+				if ( strpos( $parts[0], '/dev' ) !== 0 ) {
+					continue;
+				}
+				$mounted = implode( ' ', array_slice( $parts, 5 ) );
+				$disks[] = [
+					'fs' => $parts[0],
+					'size' => $parts[1],
+					'used' => $parts[2],
+					'avail' => $parts[3],
+					'use_pct' => (int)rtrim( $parts[4], '%' ),
+					'mounted' => $mounted
+				];
+			}
+		}
+
+		return $disks;
+	}
+
+	/**
+	 * Determine health status for disks.
+	 *
+	 * @param array $disks
+	 * @return string 'Healthy'|'Warning'|'Critical'|'Unknown'
+	 */
+	private function getDiskHealthState( array $disks ): string {
+		if ( empty( $disks ) ) {
+			return 'Unknown';
+		}
+
+		$maxUse = 0;
+		foreach ( $disks as $disk ) {
+			if ( $disk['use_pct'] > $maxUse ) {
+				$maxUse = $disk['use_pct'];
+			}
+		}
+
+		if ( $maxUse > 80 ) {
+			return 'Critical';
+		} elseif ( $maxUse > 50 ) {
+			return 'Warning';
+		} else {
+			return 'Healthy';
+		}
+	}
+
+
+	/**
 		* Helper function to format seconds into days, hours, and minutes.
 		*
 		* @param int $seconds
@@ -214,15 +287,16 @@ class SpecialServerHealth extends SpecialPage {
 	}
 
 	/**
-		* Render dashboard markup.
-		*
-		* @param array $cpuLoad
-		* @param string $systemUptime
-		* @param array $memory
-		* @param array $dbMetrics
-		* @return void
-		*/
-	private function renderDashboard( array $cpuLoad, string $systemUptime, array $memory, array $dbMetrics ): void {
+	 * Render dashboard markup.
+	 *
+	 * @param array $cpuLoad
+	 * @param string $systemUptime
+	 * @param array $memory
+	 * @param array $dbMetrics
+	 * @param array $disks
+	 * @return void
+	 */
+	private function renderDashboard( array $cpuLoad, string $systemUptime, array $memory, array $dbMetrics, array $disks ): void {
 		$out = $this->getOutput();
 
 		// Determine CPU and Memory state values
@@ -376,6 +450,48 @@ class SpecialServerHealth extends SpecialPage {
 		);
 		$html .= Html::closeElement( 'div' );
 		$html .= Html::element( 'p', [ 'class' => 'perfmon-card-desc' ], $this->msg( 'mediawikiperfmon-db-desc' )->text() );
+		$html .= Html::closeElement( 'div' );
+
+		// 4. Disk Status Card
+		$diskState = $this->getDiskHealthState( $disks );
+		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-card ' . $this->getCardStateClass( $diskState ) ] );
+		$html .= Html::rawElement( 'div', [ 'class' => 'perfmon-card-icon' ], '💿' );
+		$html .= Html::rawElement( 'h3', [ 'class' => 'perfmon-card-title' ],
+			Html::element( 'span', [], $this->msg( 'mediawikiperfmon-disk-status' )->text() ) .
+			$this->getStatusBadge( $diskState )
+		);
+
+		$html .= Html::openElement( 'div', [ 'class' => 'perfmon-disk-table-container' ] );
+		$html .= Html::openElement( 'table', [ 'class' => 'perfmon-disk-table' ] );
+		$html .= Html::rawElement( 'thead', [],
+			Html::rawElement( 'tr', [],
+				Html::element( 'th', [], $this->msg( 'mediawikiperfmon-disk-mount' )->text() ) .
+				Html::element( 'th', [], $this->msg( 'mediawikiperfmon-disk-size' )->text() ) .
+				Html::element( 'th', [], $this->msg( 'mediawikiperfmon-disk-used' )->text() ) .
+				Html::element( 'th', [], $this->msg( 'mediawikiperfmon-disk-use-pct' )->text() )
+			)
+		);
+		$html .= Html::openElement( 'tbody' );
+		foreach ( $disks as $disk ) {
+			$status = 'green';
+			if ( $disk['use_pct'] > 80 ) {
+				$status = 'red';
+			} elseif ( $disk['use_pct'] > 50 ) {
+				$status = 'amber';
+			}
+
+			$html .= Html::rawElement( 'tr', [],
+				Html::element( 'td', [], $disk['mounted'] ) .
+				Html::element( 'td', [], $disk['size'] ) .
+				Html::element( 'td', [], $disk['used'] ) .
+				Html::rawElement( 'td', [], $this->formatMetricValue( $disk['use_pct'] . '%', $status ) )
+			);
+		}
+		$html .= Html::closeElement( 'tbody' );
+		$html .= Html::closeElement( 'table' );
+		$html .= Html::closeElement( 'div' ); // perfmon-disk-table-container
+
+		$html .= Html::element( 'p', [ 'class' => 'perfmon-card-desc' ], $this->msg( 'mediawikiperfmon-disk-desc' )->text() );
 		$html .= Html::closeElement( 'div' );
 
 		$html .= Html::closeElement( 'div' ); // perfmon-dashboard
